@@ -91,6 +91,7 @@ void list_processes(){
                         perror("realloc");
                         free(processes);
                         closedir(dir);
+                        fclose(file);
                         return;
                     }
                     processes = temp;
@@ -107,9 +108,21 @@ void list_processes(){
 
     closedir(dir);
 
-    for (int i = 0; i < count; i++) {
-        printf("%d: %s\n", processes[i].pid, processes[i].name);
+    for (int i = 0; i < count - 1; i++) {
+    for (int j = i + 1; j < count; j++) {
+        if (processes[j].memory_kb > processes[i].memory_kb) {
+            Process temp = processes[i];
+            processes[i] = processes[j];
+            processes[j] = temp;
+        }
     }
+}
+
+    for (int i = 0; i < count; i++) {
+        printf("%d: %s - %ld kB\n", processes[i].pid, processes[i].name, processes[i].memory_kb);
+    }
+
+    free(processes);
 
     printf("\nGefundene Prozesse: %d\n", count);
 }
