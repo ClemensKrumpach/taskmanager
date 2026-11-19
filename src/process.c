@@ -24,14 +24,24 @@ static long get_process_memory(int pid){
     char line[256];
     long memory_kb = 0;
 
-    snprintf(path, sizeof(path), "/proc/%s/status", line);
+    snprintf(path, sizeof(path), "/proc/%d/status", pid);
 
-    FILE *fp = fopen(line, "r");
+    FILE *fp = fopen(path, "r");
 
     if (fp == NULL){
         perror("fopen");
-        return 1;
+        return -1;
     }
+
+    while (fgets(line, sizeof(line), fp) != NULL){
+        if (strncmp(line, "VmRSS:", 6) == 0 &&
+            sscanf(line + 6, "%ld", &memory_kb) == 1) {
+            fclose(fp);
+            return memory_kb;
+        }
+    }
+    fclose(fp);
+    return -1;
 }
 
 void list_processes(){
@@ -72,7 +82,8 @@ void list_processes(){
 
             if(fgets(process.name, sizeof(process.name), file) != NULL){
                 process.name[strcspn(process.name, "\n")] = '\0';
-                
+                process.memory_kb = get_process_memory(process.pid);
+
                 if (count == capacity) {
                     int new_capacity = 2 * capacity;
                     Process *temp = realloc(processes, new_capacity * sizeof(Process));
