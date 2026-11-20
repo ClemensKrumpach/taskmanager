@@ -109,14 +109,14 @@ void list_processes(){
     closedir(dir);
 
     for (int i = 0; i < count - 1; i++) {
-    for (int j = i + 1; j < count; j++) {
-        if (processes[j].memory_kb > processes[i].memory_kb) {
-            Process temp = processes[i];
-            processes[i] = processes[j];
-            processes[j] = temp;
+        for (int j = i + 1; j < count; j++) {
+            if (processes[j].memory_kb > processes[i].memory_kb) {
+                Process temp = processes[i];
+                processes[i] = processes[j];
+                processes[j] = temp;
+            }
         }
     }
-}
 
     for (int i = 0; i < count; i++) {
         printf("%d: %s - %ld kB\n", processes[i].pid, processes[i].name, processes[i].memory_kb);
