@@ -1,128 +1,153 @@
-#include <stdio.h>
-#include <dirent.h>
 #include <ctype.h>
-#include <stdlib.h>  // atoi()
-#include <string.h>  // strcspn()
+#include <dirent.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "process.h"
 
-static int is_numeric(const char *str){
-    if(str[0] == '\0'){
+static int is_numeric(const char *text) {
+    if (text[0] == '\0') {
         return 0;
     }
 
-    for(int i = 0; str[i] != '\0'; i++){
-        if(!isdigit((unsigned char)str[i])){
+    for (size_t i = 0; text[i] != '\0'; ++i) {
+        if (!isdigit((unsigned char)text[i])) {
             return 0;
         }
     }
+
     return 1;
 }
 
-static long get_process_memory(int pid){
+static long get_process_memory(int pid) {
     char path[256];
     char line[256];
-    long memory_kb = 0;
 
     snprintf(path, sizeof(path), "/proc/%d/status", pid);
 
-    FILE *fp = fopen(path, "r");
-
-    if (fp == NULL){
-        perror("fopen");
+    FILE *file = fopen(path, "r");
+    if (file == NULL) {
         return -1;
     }
 
-    while (fgets(line, sizeof(line), fp) != NULL){
+    long memory_kb;
+    while (fgets(line, sizeof(line), file) != NULL) {
         if (strncmp(line, "VmRSS:", 6) == 0 &&
             sscanf(line + 6, "%ld", &memory_kb) == 1) {
-            fclose(fp);
+            fclose(file);
             return memory_kb;
         }
     }
-    fclose(fp);
+
+    fclose(file);
     return -1;
 }
 
-void list_processes(){
-    DIR *dir = opendir("/proc");
+int collect_processes(ProcessList *list) {
+    if (list == NULL || list->items != NULL) {
+        return -1;
+    }
 
-    if (dir == NULL){
-        perror("opendir");
-        return;
+    DIR *dir = opendir("/proc");
+    if (dir == NULL) {
+        perror("opendir /proc");
+        return -1;
+    }
+
+    size_t capacity = 10;
+    size_t count = 0;
+    Process *processes = malloc(capacity * sizeof(*processes));
+    if (processes == NULL) {
+        perror("malloc");
+        closedir(dir);
+        return -1;
     }
 
     struct dirent *entry;
-
-    int capacity = 10;
-    int count = 0;
-    Process *processes = malloc(capacity * sizeof(Process));
-
-    if (processes == NULL){
-        perror("malloc");
-        closedir(dir);
-        return;
-    }
-
-    while((entry = readdir(dir)) != NULL){
-        char path[512];
-
-        if(is_numeric(entry->d_name)){
-            snprintf(path, sizeof(path), "/proc/%s/comm", entry->d_name);
-
-            Process process;
-
-            process.pid = atoi(entry->d_name);
-
-            FILE *file = fopen(path, "r");
-
-            if(file == NULL){
-                continue;
-            }
-
-            if(fgets(process.name, sizeof(process.name), file) != NULL){
-                process.name[strcspn(process.name, "\n")] = '\0';
-                process.memory_kb = get_process_memory(process.pid);
-
-                if (count == capacity) {
-                    int new_capacity = 2 * capacity;
-                    Process *temp = realloc(processes, new_capacity * sizeof(Process));
-                    if (temp == NULL) {
-                        perror("realloc");
-                        free(processes);
-                        closedir(dir);
-                        fclose(file);
-                        return;
-                    }
-                    processes = temp;
-                    capacity = new_capacity;
-                }
-                processes[count] = process;
-                count++;
-            }
-
-
-            fclose(file);
+    while ((entry = readdir(dir)) != NULL) {
+        if (!is_numeric(entry->d_name)) {
+            continue;
         }
+
+        Process process = {0};
+        process.pid = atoi(entry->d_name);
+
+        char path[256];
+        snprintf(path, sizeof(path), "/proc/%d/comm", process.pid);
+
+        FILE *file = fopen(path, "r");
+        if (file == NULL) {
+            continue;
+        }
+
+        if (fgets(process.name, sizeof(process.name), file) == NULL) {
+            fclose(file);
+            continue;
+        }
+        fclose(file);
+
+        process.name[strcspn(process.name, "\n")] = '\0';
+        process.memory_kb = get_process_memory(process.pid);
+
+        if (count == capacity) {
+            size_t new_capacity = capacity * 2;
+            Process *larger = realloc(processes,
+                                      new_capacity * sizeof(*processes));
+            if (larger == NULL) {
+                perror("realloc");
+                free(processes);
+                closedir(dir);
+                return -1;
+            }
+
+            processes = larger;
+            capacity = new_capacity;
+        }
+
+        processes[count] = process;
+        ++count;
     }
 
     closedir(dir);
 
-    for (int i = 0; i < count - 1; i++) {
-        for (int j = i + 1; j < count; j++) {
+    for (size_t i = 0; i < count; ++i) {
+        for (size_t j = i + 1; j < count; ++j) {
             if (processes[j].memory_kb > processes[i].memory_kb) {
-                Process temp = processes[i];
+                Process temporary = processes[i];
                 processes[i] = processes[j];
-                processes[j] = temp;
+                processes[j] = temporary;
             }
         }
     }
 
-    for (int i = 0; i < count; i++) {
-        printf("%d: %s - %ld kB\n", processes[i].pid, processes[i].name, processes[i].memory_kb);
+    list->items = processes;
+    list->count = count;
+    return 0;
+}
+
+void list_processes(void) {
+    ProcessList list = {0};
+    if (collect_processes(&list) != 0) {
+        return;
     }
 
-    free(processes);
+    for (size_t i = 0; i < list.count; ++i) {
+        const Process *process = &list.items[i];
+        printf("%d: %s - %ld kB\n",
+               process->pid, process->name, process->memory_kb);
+    }
 
-    printf("\nGefundene Prozesse: %d\n", count);
+    printf("\nGefundene Prozesse: %zu\n", list.count);
+    free_processes(&list);
+}
+
+void free_processes(ProcessList *list) {
+    if (list == NULL) {
+        return;
+    }
+
+    free(list->items);
+    list->items = NULL;
+    list->count = 0;
 }

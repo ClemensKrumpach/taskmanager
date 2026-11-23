@@ -14,7 +14,8 @@ add_executable(taskmanager
     src/system.c
 )
 
-add_executable(notcurses_demo src/notcurses_demo.c)
+add_executable(notcurses_demo src/notcurses_demo.c src/process.c)
+target_include_directories(notcurses_demo PRIVATE include)
 target_link_libraries(notcurses_demo PRIVATE PkgConfig::NOTCURSES_CORE)
 
 target_include_directories(taskmanager PRIVATE include)
