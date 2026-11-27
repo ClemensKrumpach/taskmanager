@@ -6,22 +6,13 @@ set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(NOTCURSES_CORE REQUIRED IMPORTED_TARGET notcurses-core)
+pkg_check_modules(GTK4 REQUIRED IMPORTED_TARGET gtk4)
 
-add_executable(taskmanager
-    src/main.c
+add_executable(taskmanager_gui
+    src/taskmanager_gui.c
     src/process.c
-    src/system.c
 )
 
-add_executable(notcurses_demo src/notcurses_demo.c src/process.c)
-target_include_directories(notcurses_demo PRIVATE include)
-target_link_libraries(notcurses_demo PRIVATE PkgConfig::NOTCURSES_CORE)
-
-target_include_directories(taskmanager PRIVATE include)
-
-target_compile_options(taskmanager PRIVATE
-    -Wall
-    -Wextra
-    -Wpedantic
-)
+target_include_directories(taskmanager_gui PRIVATE include)
+target_link_libraries(taskmanager_gui PRIVATE PkgConfig::GTK4)
+target_compile_options(taskmanager_gui PRIVATE -Wall -Wextra -Wpedantic)

@@ -14,8 +14,5 @@ typedef struct {
 
 int collect_processes(ProcessList *list);
 void free_processes(ProcessList *list);
-void list_processes(void);
-
-void list_processes(void);
 
 #endif

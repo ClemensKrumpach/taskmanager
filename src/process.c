@@ -126,22 +126,6 @@ int collect_processes(ProcessList *list) {
     return 0;
 }
 
-void list_processes(void) {
-    ProcessList list = {0};
-    if (collect_processes(&list) != 0) {
-        return;
-    }
-
-    for (size_t i = 0; i < list.count; ++i) {
-        const Process *process = &list.items[i];
-        printf("%d: %s - %ld kB\n",
-               process->pid, process->name, process->memory_kb);
-    }
-
-    printf("\nGefundene Prozesse: %zu\n", list.count);
-    free_processes(&list);
-}
-
 void free_processes(ProcessList *list) {
     if (list == NULL) {
         return;
