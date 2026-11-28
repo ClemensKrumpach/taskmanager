@@ -6,13 +6,13 @@
 
 #include "process.h"
 
-static int is_numeric(const char *text) {
+static int is_numeric(const char *text) {               //Pointer zeigt auf das erste Zeichen von 'text'
     if (text[0] == '\0') {
         return 0;
     }
 
     for (size_t i = 0; text[i] != '\0'; ++i) {
-        if (!isdigit((unsigned char)text[i])) {
+        if (!isdigit((unsigned char) text[i])) {        //isdigit --> überprüft ob ein Zeichen zwischen '0' und '9' ist, deshalb das 'unsigned char'
             return 0;
         }
     }
@@ -24,17 +24,17 @@ static long get_process_memory(int pid) {
     char path[256];
     char line[256];
 
-    snprintf(path, sizeof(path), "/proc/%d/status", pid);
+    snprintf(path, sizeof(path), "/proc/%d/status", pid);    //erstellt unseren String den wir mit 'fopen' lesen können
 
-    FILE *file = fopen(path, "r");
+    FILE *file = fopen(path, "r");                         
     if (file == NULL) {
         return -1;
     }
 
     long memory_kb;
-    while (fgets(line, sizeof(line), file) != NULL) {
+    while (fgets(line, sizeof(line), file) != NULL) {           //zeilenweise!!!
         if (strncmp(line, "VmRSS:", 6) == 0 &&
-            sscanf(line + 6, "%ld", &memory_kb) == 1) {
+            sscanf(line + 6, "%ld", &memory_kb) == 1) {         //'line + 6' - Pointer Arithmetik, überspringt quasi 'VmRSS:'. &memory_kb ist unsere Zieladresse in der Wert gespeichert wird.
             fclose(file);
             return memory_kb;
         }
@@ -45,7 +45,7 @@ static long get_process_memory(int pid) {
 }
 
 int collect_processes(ProcessList *list) {
-    if (list == NULL || list->items != NULL) {
+    if (list == NULL || list->items != NULL) {          //erwarte leere ProcessList
         return -1;
     }
 
@@ -55,9 +55,10 @@ int collect_processes(ProcessList *list) {
         return -1;
     }
 
-    size_t capacity = 10;
-    size_t count = 0;
-    Process *processes = malloc(capacity * sizeof(*processes));
+    size_t capacity = 10;           //theoretisch maxAnzahl an Prozessen
+    size_t count = 0;               //tatsächliche Anzahl an Prozessen
+    Process *processes = malloc(capacity * sizeof(*processes));     //Pointer auf reservierten Speicherbereich.
+                                                                    //D.h. wir initialisieren hier Speicher für 10 theoretische Process Objekte
     if (processes == NULL) {
         perror("malloc");
         closedir(dir);
@@ -70,11 +71,11 @@ int collect_processes(ProcessList *list) {
             continue;
         }
 
-        Process process = {0};
-        process.pid = atoi(entry->d_name);
+        Process process = {0};              //lokale Struktur, alle Attribute auf NULL
+        process.pid = atoi(entry->d_name);  
 
         char path[256];
-        snprintf(path, sizeof(path), "/proc/%d/comm", process.pid);
+        snprintf(path, sizeof(path), "/proc/%d/comm", process.pid);     //comm --> command name
 
         FILE *file = fopen(path, "r");
         if (file == NULL) {
